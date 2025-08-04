@@ -1,0 +1,8 @@
+{
+	"csv": "devices.csv",
+	"customerId": "my_customer",
+	"adminUser": "superadmin@domain.com",
+	"serviceAccount": "service-account.json",
+	"promptOnError": true,
+	"dryRun": false
+}
