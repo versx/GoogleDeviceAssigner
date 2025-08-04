@@ -9,10 +9,9 @@ if (config == null)
 }
 
 var assigner = new StudentDeviceAssigner(config);
+assigner.Completed += (_, e) => Console.WriteLine($"Done");
 assigner.Error += (_, e) => Console.WriteLine($"[ERROR] {e.Error}");
 await assigner.Run();
-
-Console.WriteLine("Done");
 
 static void PrintUsage()
 {

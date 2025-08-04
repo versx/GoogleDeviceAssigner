@@ -26,6 +26,9 @@ internal class StudentDeviceAssigner(Config config)
 
     #region Events
 
+    public event EventHandler? Completed;
+    private void OnCompleted() => Completed?.Invoke(this, new());
+
     public event EventHandler<StudentDeviceAssignerError>? Error;
     private void OnError(string error) => Error?.Invoke(this, new(error));
 
@@ -62,6 +65,8 @@ internal class StudentDeviceAssigner(Config config)
             ExportCsv(DefaultFailedCsvFilePath, failed);
             progress.WriteErrorLine($"Failed to update {failed.Count:N0} devices. See '{DefaultFailedCsvFilePath}'.");
         }
+
+        OnCompleted();
     }
 
     #endregion
@@ -93,7 +98,7 @@ internal class StudentDeviceAssigner(Config config)
             Environment.Exit(1);
     }
 
-    private async Task<DeviceUpdateResult> UpdateDevice(DirectoryService service, StudentDeviceRecord record)
+    private async Task<StudentDeviceUpdateResult> UpdateDevice(DirectoryService service, StudentDeviceRecord record)
     {
         try
         {
@@ -187,4 +192,11 @@ internal class StudentDeviceAssigner(Config config)
     #endregion
 }
 
-internal record DeviceUpdateResult(bool Success, string Message);
+internal record StudentDeviceRecord(string SerialNumber, string? AssetInfo, string? OrgUnitPath);
+
+internal record StudentDeviceUpdateResult(bool Success, string Message);
+
+internal sealed class StudentDeviceAssignerError(string error) : EventArgs
+{
+    public string Error => error;
+}
