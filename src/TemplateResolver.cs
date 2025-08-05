@@ -4,8 +4,7 @@ namespace DeviceAssigner;
 
 internal static partial class TemplateResolver
 {
-    //private static readonly Regex PlaceholderRegex = new(@"{(?<key>[^{}]+)}", RegexOptions.Compiled);
-    private static readonly Regex PlaceholderRegex = MyPlaceholderRegex();
+    private static readonly Regex PlaceholderRegex = new(@"{(?<key>[^{}]+)}", RegexOptions.Compiled);
 
     public static string? Resolve(string template, IDictionary<string, string?> values)
     {
@@ -37,8 +36,21 @@ internal static partial class TemplateResolver
             .Replace("{YearRange}", data.YearRange);
     }
 
-    [GeneratedRegex(@"{(?<key>[^{}]+)}", RegexOptions.Compiled)]
-    private static partial Regex MyPlaceholderRegex();
+    public static string? FormatTemplate(string template, Dictionary<string, string?> values)
+    {
+        if (string.IsNullOrWhiteSpace(template) || values == null)
+            return null;
+
+        foreach (var kvp in values)
+        {
+            var value = string.IsNullOrWhiteSpace(kvp.Value) ? "" : kvp.Value;
+            template = template.Replace($"{{{kvp.Key}}}", value);
+        }
+
+        // Collapse multiple spaces and trim
+        template = Regex.Replace(template, @"\s+", " ").Trim();
+        return template;
+    }
 }
 
 internal class TemplateData
