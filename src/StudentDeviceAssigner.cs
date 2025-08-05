@@ -30,6 +30,7 @@ internal class StudentDeviceAssigner(Config config)
     #region Variables
 
     private SheetsService? _sheetsService;
+    private OrgUnitCreator _ouCreator = null!;
 
     #endregion
 
@@ -75,7 +76,8 @@ internal class StudentDeviceAssigner(Config config)
         progress.WriteLine($"Parsed {records.Count:N0} records from CSV...");
 
         var failed = new List<StudentDeviceRecord>();
-        using var adminService = CreateAdminService();
+        using var adminService = CreateDirectoryService();
+        _ouCreator = new OrgUnitCreator(adminService, CustomerId);
         _sheetsService = CreateSheetsService();
 
         foreach (var record in records)
@@ -146,31 +148,22 @@ internal class StudentDeviceAssigner(Config config)
                 return new(false, device, $"Device not found for serial '{record.SerialNumber}'");
             }
 
-            //var deviceId = $"{CartNumber}-{record.DeviceNumber}";
-            var deviceId = TemplateResolver.Resolve(DeviceIdTemplate, new TemplateData
+            var deviceId = TemplateResolver.FormatTemplate(DeviceIdTemplate, new Dictionary<string, string?>
             {
-                CartNumber = CartNumber,
-                DeviceNumber = record.DeviceNumber!,
-                SerialNumber = record.SerialNumber,
-                PurchaseId = record.PurchaseId,
+                ["CartNumber"] = CartNumber.ToString(),
+                ["DeviceNumber"] = record.DeviceNumber!,
+                ["SerialNumber"] = record.SerialNumber,
+                ["PurchaseId"] = record.PurchaseId,
             });
-            var assetIdNum = TemplateResolver.Resolve(AssetIdTemplate, new TemplateData
+            var assetId = TemplateResolver.FormatTemplate(AssetIdTemplate, new Dictionary<string, string?>
             {
-                CartNumber = CartNumber,
-                DeviceId = deviceId!,
-                StudentName = record.StudentName!,
-                DeviceNumber = record.DeviceNumber!,
-                SerialNumber = record.SerialNumber,
-                PurchaseId = record.PurchaseId,
+                ["CartNumber"] = CartNumber.ToString(),
+                ["DeviceId"] = deviceId!,
+                ["StudentName"] = record.StudentName!,
+                ["DeviceNumber"] = record.DeviceNumber!,
+                ["SerialNumber"] = record.SerialNumber,
+                ["PurchaseId"] = record.PurchaseId,
             });
-            var assetId = string.IsNullOrEmpty(assetIdNum)
-                ? string.IsNullOrEmpty(record.PurchaseId)
-                    ? $"{deviceId} {record.StudentName}"
-                    : $"{deviceId} {record.PurchaseId} {record.StudentName}"
-                : assetIdNum;
-            //var assetId = string.IsNullOrEmpty(record.PurchaseId)
-            //    ? $"{deviceId} {record.StudentName}"
-            //    : $"{deviceId} {record.PurchaseId} {record.StudentName}";
             var orgUnitPath = TemplateResolver.Resolve(OrgUnitPathTemplate, new TemplateData
             {
                 CartNumber = CartNumber,
@@ -186,13 +179,18 @@ internal class StudentDeviceAssigner(Config config)
             {
                 AnnotatedAssetId = assetId,
                 OrgUnitPath = orgUnitPath ?? device.OrgUnitPath,
-                Notes = notes == device.Notes ? device.Notes : notes,
+                Notes = notes == device.Notes
+                    ? device.Notes
+                    : notes,
             };
 
             if (IsDryRun)
             {
                 return new(true, device, $"[Dry Run] '{device.SerialNumber}', Asset: {assetId}, OU: {updatedDevice.OrgUnitPath}");
             }
+
+            // Ensure OU exists, create it if it doesn't
+            await _ouCreator.EnsureOrgUnitExistsAsync(updatedDevice.OrgUnitPath);
 
             await service.Chromeosdevices.Update(updatedDevice, CustomerId, device.DeviceId).ExecuteAsync();
             return new(true, device, $"Updated device: '{device.SerialNumber}', Asset: {assetId}, OU: {updatedDevice.OrgUnitPath}");
@@ -223,7 +221,7 @@ internal class StudentDeviceAssigner(Config config)
             .CreateScoped(AdminScopes)
             .CreateWithUser(AdminUserToImpersonate);
 
-    private DirectoryService CreateAdminService() =>
+    private DirectoryService CreateDirectoryService() =>
         new(new BaseClientService.Initializer
         {
             HttpClientInitializer = CreateCredentials(),

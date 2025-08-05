@@ -7,8 +7,8 @@ internal class Config
 {
     #region Constants
 
-    public const string DefaultConfigFileName = "config.json";
-    private const string DefaultCustomerId = "my_customer";
+    internal const string DefaultConfigFileName = "config.json";
+    internal const string DefaultCustomerId = "my_customer";
     private const string DefaultCsvPath = "devices.csv";
     private const string DefaultServiceAccountPath = "service-account.json";
     private const string DefaultDeviceIdTemplate = "{CartNumber}-{DeviceNumber}";
