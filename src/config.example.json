@@ -5,7 +5,7 @@
 	"customerId": "my_customer",
 	"adminUser": "superadmin@domain.com",
 	"serviceAccount": "service-account.json",
-	"googleSheetId": "1_L7qnfg_SmukVrTjPDrGL4fI8OJmPI8TEJ_zJDmxKKF",
+	"googleSheetId": "1xYzABCDEF1234567890ghiJKLmnOpQrstuVWxyz",
 	"promptOnError": true,
 	"dryRun": false
 }

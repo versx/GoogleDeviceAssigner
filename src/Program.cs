@@ -17,6 +17,9 @@ static void PrintUsage()
 {
     Console.WriteLine("\n📘 Usage:");
     Console.WriteLine(
+        "  dotnet run (uses 'config.json' in current directory if it exists)"
+    );
+    Console.WriteLine(
         "  dotnet run -- " +
         "--cartNumber=1" +
         "--ouTemplate=/Chromebooks/Cart {CartNumber} {YearRange}" +
