@@ -21,29 +21,33 @@ internal static partial class TemplateResolver
         });
     }
 
-    public static string? Render(string template, OrgUnitPathTemplateData data)
+    public static string? Resolve(string template, TemplateData data)
     {
         if (string.IsNullOrWhiteSpace(template) || data == null)
             return null;
 
         return template
-                .Replace("{CartNumber}", data.CartNumber.ToString())
-                .Replace("{DeviceNumber}", data.DeviceNumber ?? "")
-                .Replace("{SerialNumber}", data.SerialNumber)
-                .Replace("{PurchaseId}", data.PurchaseId ?? "")
-                .Replace("{Year}", data.Year)
-                .Replace("{YearRange}", data.YearRange);
+            .Replace("{CartNumber}", data.CartNumber.ToString())
+            .Replace("{DeviceId}", data.DeviceId)
+            .Replace("{StudentName}", data.StudentName)
+            .Replace("{DeviceNumber}", data.DeviceNumber ?? "")
+            .Replace("{SerialNumber}", data.SerialNumber)
+            .Replace("{PurchaseId}", data.PurchaseId ?? "")
+            .Replace("{Year}", data.Year)
+            .Replace("{YearRange}", data.YearRange);
     }
 
     [GeneratedRegex(@"{(?<key>[^{}]+)}", RegexOptions.Compiled)]
     private static partial Regex MyPlaceholderRegex();
 }
 
-internal class OrgUnitPathTemplateData
+internal class TemplateData
 {
     public int CartNumber { get; set; }
+    public string DeviceId { get; set; } = null!;
     public string DeviceNumber { get; set; } = null!;
     public string SerialNumber { get; set; } = null!;
+    public string StudentName { get; set; } = null!;
     public string? PurchaseId { get; set; }
 
     public string Year { get; set; } = DateTime.Now.Year.ToString();

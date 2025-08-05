@@ -56,7 +56,7 @@ Create a `config.json` file or pass equivalent values as command-line arguments.
   "serviceAccount": "service-account.json",
   "googleSheetId": "1xYzABCDEF1234567890ghiJKLmnOpQrstuVWxyz",
   "promptOnError": true,
-  "dryRun": false
+  "dryRun": true
 }
 ```
 

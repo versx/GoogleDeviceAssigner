@@ -11,7 +11,11 @@ internal class Config
     private const string DefaultCustomerId = "my_customer";
     private const string DefaultCsvPath = "devices.csv";
     private const string DefaultServiceAccountPath = "service-account.json";
+    private const string DefaultDeviceIdTemplate = "{CartNumber}-{DeviceNumber}";
+    private const string DefaultAssetIdTemplate = "{DeviceId} {PurchaseId} {StudentName}";
     private const string DefaultOrgUnitPathTemplate = "/Chromebooks/Cart {CartNumber} {YearRange}";
+    private const bool DefaultDryRun = true;
+    private const bool DefaultPromptOnError = true;
 
     #endregion
 
@@ -32,6 +36,12 @@ internal class Config
     [JsonPropertyName("cartNumber")]
     public int CartNumber { get; set; } = 1;
 
+    [JsonPropertyName("deviceIdTemplate")]
+    public string DeviceIdTemplate { get; set; } = DefaultDeviceIdTemplate;
+
+    [JsonPropertyName("assetIdTemplate")]
+    public string AssetIdTemplate { get; set; } = DefaultAssetIdTemplate;
+
     [JsonPropertyName("ouTemplate")]
     public string OrgUnitPathTemplate { get; set; } = DefaultOrgUnitPathTemplate;
 
@@ -48,13 +58,13 @@ internal class Config
     public string ServiceAccountFilePath { get; set; } = DefaultServiceAccountPath;
 
     [JsonPropertyName("googleSheetId")]
-    public required string GoogleSheetId { get; init; }
+    public required string? GoogleSheetId { get; init; }
 
     [JsonPropertyName("promptOnError")]
-    public bool PromptOnError { get; set; } = true;
+    public bool PromptOnError { get; set; } = DefaultPromptOnError;
 
     [JsonPropertyName("dryRun")]
-    public bool IsDryRun { get; set; }
+    public bool IsDryRun { get; set; } = DefaultDryRun;
 
     #endregion
 
@@ -87,6 +97,8 @@ internal class Config
         var config = new Config
         {
             CartNumber = int.TryParse(GetArg("cartNumber"), out var cartNum) ? cartNum : 1,
+            DeviceIdTemplate = GetArg("deviceIdTemplate") ?? DefaultDeviceIdTemplate,
+            AssetIdTemplate = GetArg("assetIdTemplate") ?? DefaultAssetIdTemplate,
             OrgUnitPathTemplate = GetArg("ouTemplate") ?? DefaultOrgUnitPathTemplate,
             ServiceAccountFilePath = GetArg("serviceAccount") ?? DefaultServiceAccountPath,
             AdminUserToImpersonate = GetArg("adminUser")!,

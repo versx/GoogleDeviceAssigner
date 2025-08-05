@@ -17,6 +17,7 @@ internal class StudentDeviceAssigner(Config config)
 
     private const string AppName = "DeviceAssigner";
     private const string DefaultFailedCsvFilePath = "failed-devices.csv";
+
     private static readonly string[] AdminScopes =
     [
         "https://www.googleapis.com/auth/admin.directory.device.chromeos",
@@ -35,12 +36,14 @@ internal class StudentDeviceAssigner(Config config)
     #region Properties
 
     public int CartNumber => config.CartNumber;
+    public string DeviceIdTemplate => config.DeviceIdTemplate;
+    public string AssetIdTemplate => config.AssetIdTemplate;
     public string OrgUnitPathTemplate => config.OrgUnitPathTemplate;
     public string CsvFilePath => config.CsvFilePath;
     public string AdminUserToImpersonate => config.AdminUserToImpersonate;
     public string CustomerId => config.CustomerId;
     public string ServiceAccountPath => config.ServiceAccountFilePath;
-    public string GoogleSheetId => config.GoogleSheetId;
+    public string? GoogleSheetId => config.GoogleSheetId;
     public bool PromptOnError => config.PromptOnError;
     public bool IsDryRun => config.IsDryRun;
 
@@ -94,7 +97,7 @@ internal class StudentDeviceAssigner(Config config)
 
     #endregion
 
-    #region Private Methods
+    #region Processing Methods
 
     private async Task ProcessDeviceRecord(
         DirectoryService service,
@@ -108,7 +111,14 @@ internal class StudentDeviceAssigner(Config config)
             progress.WriteLine($"[SUCCESS] {result.Message}");
             if (!string.IsNullOrWhiteSpace(GoogleSheetId))
             {
+                try
+                {
                 await UpdateGoogleSheetAsync(result.Device ?? null!, record);
+            }
+                catch (Exception ex)
+                {
+                    OnError($"Error updating Google Sheet with device '{record.SerialNumber}': {ex.Message}");
+                }
             }
             return;
         }
@@ -135,26 +145,47 @@ internal class StudentDeviceAssigner(Config config)
                 return new(false, device, $"Device not found for serial '{record.SerialNumber}'");
             }
 
-            // TODO: Templatable DeviceId and AssetId
-            var deviceId = $"{CartNumber}-{record.DeviceNumber}";
-            var assetId = string.IsNullOrEmpty(record.PurchaseId)
-                ? $"{deviceId} {record.StudentName}"
-                : $"{deviceId} {record.PurchaseId} {record.StudentName}";
-            var orgUnitPath = TemplateResolver.Render(OrgUnitPathTemplate, new()
+            //var deviceId = $"{CartNumber}-{record.DeviceNumber}";
+            var deviceId = TemplateResolver.Resolve(DeviceIdTemplate, new TemplateData
             {
                 CartNumber = CartNumber,
-                DeviceNumber = deviceId,
+                DeviceNumber = record.DeviceNumber!,
                 SerialNumber = record.SerialNumber,
                 PurchaseId = record.PurchaseId,
             });
+            var assetIdNum = TemplateResolver.Resolve(AssetIdTemplate, new TemplateData
+            {
+                CartNumber = CartNumber,
+                DeviceId = deviceId!,
+                StudentName = record.StudentName!,
+                DeviceNumber = record.DeviceNumber!,
+                SerialNumber = record.SerialNumber,
+                PurchaseId = record.PurchaseId,
+            });
+            var assetId = string.IsNullOrEmpty(assetIdNum)
+                ? string.IsNullOrEmpty(record.PurchaseId)
+                ? $"{deviceId} {record.StudentName}"
+                    : $"{deviceId} {record.PurchaseId} {record.StudentName}"
+                : assetIdNum;
+            //var assetId = string.IsNullOrEmpty(record.PurchaseId)
+            //    ? $"{deviceId} {record.StudentName}"
+            //    : $"{deviceId} {record.PurchaseId} {record.StudentName}";
+            var orgUnitPath = TemplateResolver.Resolve(OrgUnitPathTemplate, new TemplateData
+            {
+                CartNumber = CartNumber,
+                DeviceNumber = deviceId!,
+                SerialNumber = record.SerialNumber,
+                PurchaseId = record.PurchaseId,
+            });
+            var notes = string.IsNullOrEmpty(device.Notes)
+                ? assetId
+                : $"{assetId} ({device.Notes})";
 
             var updatedDevice = new ChromeOsDevice
             {
                 AnnotatedAssetId = assetId,
                 OrgUnitPath = orgUnitPath ?? device.OrgUnitPath,
-                Notes = string.IsNullOrEmpty(device.Notes)
-                    ? assetId
-                    : $"{assetId} ({device.Notes})",
+                Notes = notes == device.Notes ? device.Notes : notes,
             };
 
             if (IsDryRun)
@@ -181,13 +212,16 @@ internal class StudentDeviceAssigner(Config config)
         return response.Chromeosdevices?.FirstOrDefault();
     }
 
+    #endregion
+
+    #region Auth Methods
+
     private GoogleCredential CreateCredentials() =>
         GoogleCredential
             .FromFile(ServiceAccountPath)
             .CreateScoped(AdminScopes)
             .CreateWithUser(AdminUserToImpersonate);
 
-    //BaseClientService
     private DirectoryService CreateAdminService() =>
         new(new BaseClientService.Initializer
         {
@@ -201,6 +235,10 @@ internal class StudentDeviceAssigner(Config config)
             HttpClientInitializer = CreateCredentials(),
             ApplicationName = AppName,
         });
+
+    #endregion
+
+    #region CSV Methods
 
     private List<StudentDeviceRecord> ReadCsv(string path)
     {
@@ -233,6 +271,10 @@ internal class StudentDeviceAssigner(Config config)
         }
     }
 
+    #endregion
+
+    #region Google Sheet Methods
+
     private async Task UpdateGoogleSheetAsync(ChromeOsDevice device, StudentDeviceRecord record)
     {
         if (_sheetsService is null || string.IsNullOrWhiteSpace(GoogleSheetId))
@@ -255,7 +297,7 @@ internal class StudentDeviceAssigner(Config config)
             record.SerialNumber,
             CartNumber,
             device.MacAddress,
-            "",//"Out of Service",
+            "", // Out of Service
             device.Model,
             record.StudentName,
             device.AnnotatedAssetId, //Existing Device Id
