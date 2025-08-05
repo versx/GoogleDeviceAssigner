@@ -3,6 +3,7 @@
 	"cartNumber": 1,
 	"deviceIdTemplate": "{CartNumber}-{DeviceNumber}",
 	"assetIdTemplate": "{DeviceId} {PurchaseId} {StudentName}",
+	"tabNameTemplate": "Cart {CartNumber}",
 	"ouTemplate": "/Chromebooks/Cart {CartNumber} {YearRange}",
 	"customerId": "my_customer",
 	"adminUser": "superadmin@domain.com",

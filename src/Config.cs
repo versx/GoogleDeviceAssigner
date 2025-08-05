@@ -13,6 +13,7 @@ internal class Config
     private const string DefaultServiceAccountPath = "service-account.json";
     private const string DefaultDeviceIdTemplate = "{CartNumber}-{DeviceNumber}";
     private const string DefaultAssetIdTemplate = "{DeviceId} {PurchaseId} {StudentName}";
+    private const string DefaultTabNameTemplate = "Cart {CartNumber}";
     private const string DefaultOrgUnitPathTemplate = "/Chromebooks/Cart {CartNumber} {YearRange}";
     private const bool DefaultDryRun = true;
     private const bool DefaultPromptOnError = true;
@@ -41,6 +42,9 @@ internal class Config
 
     [JsonPropertyName("assetIdTemplate")]
     public string AssetIdTemplate { get; set; } = DefaultAssetIdTemplate;
+
+    [JsonPropertyName("tabNameTemplate")]
+    public string TabNameTemplate { get; set; } = DefaultTabNameTemplate;
 
     [JsonPropertyName("ouTemplate")]
     public string OrgUnitPathTemplate { get; set; } = DefaultOrgUnitPathTemplate;
@@ -99,6 +103,7 @@ internal class Config
             CartNumber = int.TryParse(GetArg("cartNumber"), out var cartNum) ? cartNum : 1,
             DeviceIdTemplate = GetArg("deviceIdTemplate") ?? DefaultDeviceIdTemplate,
             AssetIdTemplate = GetArg("assetIdTemplate") ?? DefaultAssetIdTemplate,
+            TabNameTemplate = GetArg("tabNameTemplate") ?? DefaultTabNameTemplate,
             OrgUnitPathTemplate = GetArg("ouTemplate") ?? DefaultOrgUnitPathTemplate,
             ServiceAccountFilePath = GetArg("serviceAccount") ?? DefaultServiceAccountPath,
             AdminUserToImpersonate = GetArg("adminUser")!,

@@ -22,6 +22,9 @@ static void PrintUsage()
     Console.WriteLine(
         "  dotnet run -- " +
         "--cartNumber=1" +
+        "--deviceIdTemplate={CartNumber}-{DeviceNumber}" +
+        "--assetIdTemplate={DeviceId} {PurchaseId} {StudentName}" +
+        "--tabNameTemplate=/Chromebooks/Cart {CartNumber} {YearRange}" +
         "--ouTemplate=/Chromebooks/Cart {CartNumber} {YearRange}" +
         "--csv=devices.csv" +
         "--serviceAccount=service-account.json " +

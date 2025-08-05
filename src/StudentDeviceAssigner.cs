@@ -38,6 +38,7 @@ internal class StudentDeviceAssigner(Config config)
     public int CartNumber => config.CartNumber;
     public string DeviceIdTemplate => config.DeviceIdTemplate;
     public string AssetIdTemplate => config.AssetIdTemplate;
+    public string TabNameTemplate => config.TabNameTemplate;
     public string OrgUnitPathTemplate => config.OrgUnitPathTemplate;
     public string CsvFilePath => config.CsvFilePath;
     public string AdminUserToImpersonate => config.AdminUserToImpersonate;
@@ -113,8 +114,8 @@ internal class StudentDeviceAssigner(Config config)
             {
                 try
                 {
-                await UpdateGoogleSheetAsync(result.Device ?? null!, record);
-            }
+                    await UpdateGoogleSheetAsync(result.Device ?? null!, record);
+                }
                 catch (Exception ex)
                 {
                     OnError($"Error updating Google Sheet with device '{record.SerialNumber}': {ex.Message}");
@@ -164,7 +165,7 @@ internal class StudentDeviceAssigner(Config config)
             });
             var assetId = string.IsNullOrEmpty(assetIdNum)
                 ? string.IsNullOrEmpty(record.PurchaseId)
-                ? $"{deviceId} {record.StudentName}"
+                    ? $"{deviceId} {record.StudentName}"
                     : $"{deviceId} {record.PurchaseId} {record.StudentName}"
                 : assetIdNum;
             //var assetId = string.IsNullOrEmpty(record.PurchaseId)
@@ -280,16 +281,22 @@ internal class StudentDeviceAssigner(Config config)
         if (_sheetsService is null || string.IsNullOrWhiteSpace(GoogleSheetId))
             return;
 
-        // TODO: Templatable Tab Name
-        var tabName = $"Cart {CartNumber}";
-        var sheet = await EnsureSheetTabExists(tabName);
+        //var tabName = $"Cart {CartNumber}";
+        var tabName = TemplateResolver.Resolve(TabNameTemplate, new TemplateData
+        {
+            CartNumber = CartNumber,
+            DeviceNumber = record.DeviceNumber!,
+            SerialNumber = record.SerialNumber,
+            PurchaseId = record.PurchaseId,
+        });
+        //var sheet = await EnsureSheetTabExists(tabName);
 
-        var range = $"{tabName}!A2:K";
-        var response = await _sheetsService.Spreadsheets.Values.Get(GoogleSheetId, range).ExecuteAsync();
-        var existing = response.Values?.ToList() ?? [];
+        //var range = $"{tabName}!A2:K";
+        //var response = await _sheetsService.Spreadsheets.Values.Get(GoogleSheetId, range).ExecuteAsync();
+        //var existing = response.Values?.ToList() ?? [];
 
-        var rowIndex = existing.FindIndex(row =>
-            row.Count > 2 && string.Equals(row[2]?.ToString(), record.SerialNumber, StringComparison.OrdinalIgnoreCase));
+        //var rowIndex = existing.FindIndex(row =>
+        //    row.Count > 2 && string.Equals(row[2]?.ToString(), record.SerialNumber, StringComparison.OrdinalIgnoreCase));
 
         var newRow = new List<object?>
         {
@@ -305,20 +312,20 @@ internal class StudentDeviceAssigner(Config config)
             record.Damage,
         };
 
-        if (rowIndex >= 0)
-        {
-            var updateRange = $"{tabName}!A{rowIndex + 2}";
-            var update = _sheetsService.Spreadsheets.Values.Update(new ValueRange { Values = [newRow] }, GoogleSheetId, updateRange);
-            update.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
-            var result = await update.ExecuteAsync();
-        }
-        else
-        {
+        //if (rowIndex >= 0)
+        //{
+        //    var updateRange = $"{tabName}!A{rowIndex + 2}";
+        //    var update = _sheetsService.Spreadsheets.Values.Update(new ValueRange { Values = [newRow] }, GoogleSheetId, updateRange);
+        //    update.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+        //    var result = await update.ExecuteAsync();
+        //}
+        //else
+        //{
             var appendRange = $"{tabName}!A:K";
             var append = _sheetsService.Spreadsheets.Values.Append(new ValueRange { Values = [newRow] }, GoogleSheetId, appendRange);
             append.ValueInputOption = SpreadsheetsResource.ValuesResource.AppendRequest.ValueInputOptionEnum.USERENTERED;
-            var result = await append.ExecuteAsync();
-        }
+            /*var result =*/ await append.ExecuteAsync();
+        //}
     }
 
     private async Task<SheetProperties> EnsureSheetTabExists(string title)
