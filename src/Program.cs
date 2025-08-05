@@ -9,7 +9,7 @@ if (config == null)
 }
 
 var assigner = new StudentDeviceAssigner(config);
-assigner.Completed += (_, e) => Console.WriteLine($"Done");
+assigner.Completed += (_, _) => Console.WriteLine($"Done");
 assigner.Error += (_, e) => Console.WriteLine($"[ERROR] {e.Error}");
 await assigner.Run();
 
@@ -18,9 +18,13 @@ static void PrintUsage()
     Console.WriteLine("\n📘 Usage:");
     Console.WriteLine(
         "  dotnet run -- " +
+        "--cartNumber=1" +
+        "--ouTemplate=/Chromebooks/Cart {CartNumber} {YearRange}" +
+        "--csv=devices.csv" +
         "--serviceAccount=service-account.json " +
         "--adminUser=admin@example.com " +
         "--customerId=my_customer " +
-        "--csv=devices.csv [--dryRun] [--promptOnError]"
+        "[--googleSheetId=1_3lk4j23KJsl3dd] " +
+        "[--dryRun] [--promptOnError]"
     );
 }

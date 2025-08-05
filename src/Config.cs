@@ -11,6 +11,7 @@ internal class Config
     private const string DefaultCustomerId = "my_customer";
     private const string DefaultCsvPath = "devices.csv";
     private const string DefaultServiceAccountPath = "service-account.json";
+    private const string DefaultOrgUnitPathTemplate = "/Chromebooks/Cart {CartNumber} {YearRange}";
 
     #endregion
 
@@ -28,6 +29,12 @@ internal class Config
 
     #region Properties
 
+    [JsonPropertyName("cartNumber")]
+    public int CartNumber { get; set; } = 1;
+
+    [JsonPropertyName("ouTemplate")]
+    public string OrgUnitPathTemplate { get; set; } = DefaultOrgUnitPathTemplate;
+
     [JsonPropertyName("csv")]
     public string CsvFilePath { get; set; } = DefaultCsvPath;
 
@@ -39,6 +46,9 @@ internal class Config
 
     [JsonPropertyName("serviceAccount")]
     public string ServiceAccountFilePath { get; set; } = DefaultServiceAccountPath;
+
+    [JsonPropertyName("googleSheetId")]
+    public required string GoogleSheetId { get; init; }
 
     [JsonPropertyName("promptOnError")]
     public bool PromptOnError { get; set; } = true;
@@ -76,10 +86,13 @@ internal class Config
 
         var config = new Config
         {
+            CartNumber = int.TryParse(GetArg("cartNumber"), out var cartNum) ? cartNum : 1,
+            OrgUnitPathTemplate = GetArg("ouTemplate") ?? DefaultOrgUnitPathTemplate,
             ServiceAccountFilePath = GetArg("serviceAccount") ?? DefaultServiceAccountPath,
             AdminUserToImpersonate = GetArg("adminUser")!,
             CustomerId = GetArg("customerId") ?? DefaultCustomerId,
             CsvFilePath = GetArg("csv") ?? DefaultCsvPath,
+            GoogleSheetId = GetArg("googleSheetId")!,
             IsDryRun = args.Contains("--dryRun", StringComparer.OrdinalIgnoreCase),
             PromptOnError = args.Contains("--promptOnError", StringComparer.OrdinalIgnoreCase),
         };

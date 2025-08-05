@@ -1,8 +1,11 @@
 {
 	"csv": "devices.csv",
+	"cartNumber": 1,
+	"ouTemplate": "/Chromebooks/Cart {CartNumber} {YearRange}",
 	"customerId": "my_customer",
 	"adminUser": "superadmin@domain.com",
 	"serviceAccount": "service-account.json",
+	"googleSheetId": "1_L7qnfg_SmukVrTjPDrGL4fI8OJmPI8TEJ_zJDmxKKF",
 	"promptOnError": true,
 	"dryRun": false
 }

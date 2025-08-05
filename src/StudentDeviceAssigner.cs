@@ -4,6 +4,8 @@ using Google.Apis.Admin.Directory.directory_v1;
 using Google.Apis.Admin.Directory.directory_v1.Data;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
+using Google.Apis.Sheets.v4;
+using Google.Apis.Sheets.v4.Data;
 
 using ShellProgressBar;
 
@@ -11,15 +13,35 @@ namespace DeviceAssigner;
 
 internal class StudentDeviceAssigner(Config config)
 {
+    #region Constants
+
     private const string AppName = "DeviceAssigner";
     private const string DefaultFailedCsvFilePath = "failed-devices.csv";
+    private static readonly string[] AdminScopes =
+    [
+        "https://www.googleapis.com/auth/admin.directory.device.chromeos",
+        "https://www.googleapis.com/auth/admin.directory.orgunit",
+        "https://www.googleapis.com/auth/spreadsheets",
+    ];
+
+    #endregion
+
+    #region Variables
+
+    private SheetsService? _sheetsService;
+
+    #endregion
 
     #region Properties
 
+    public int CartNumber => config.CartNumber;
+    public string OrgUnitPathTemplate => config.OrgUnitPathTemplate;
     public string CsvFilePath => config.CsvFilePath;
     public string AdminUserToImpersonate => config.AdminUserToImpersonate;
     public string CustomerId => config.CustomerId;
     public string ServiceAccountPath => config.ServiceAccountFilePath;
+    public string GoogleSheetId => config.GoogleSheetId;
+    public bool PromptOnError => config.PromptOnError;
     public bool IsDryRun => config.IsDryRun;
 
     #endregion
@@ -49,11 +71,12 @@ internal class StudentDeviceAssigner(Config config)
         progress.WriteLine($"Parsed {records.Count:N0} records from CSV...");
 
         var failed = new List<StudentDeviceRecord>();
-        using var service = CreateService();
+        using var adminService = CreateAdminService();
+        _sheetsService = CreateSheetsService();
 
         foreach (var record in records)
         {
-            await ProcessDeviceRecord(service, record, failed, progress);
+            await ProcessDeviceRecord(adminService, record, failed, progress);
 
             progress.Tick(record.SerialNumber);
 
@@ -83,13 +106,17 @@ internal class StudentDeviceAssigner(Config config)
         if (result.Success)
         {
             progress.WriteLine($"[SUCCESS] {result.Message}");
+            if (!string.IsNullOrWhiteSpace(GoogleSheetId))
+            {
+                await UpdateGoogleSheetAsync(result.Device ?? null!, record);
+            }
             return;
         }
 
         failed.Add(record);
         progress.WriteErrorLine($"[ERROR] {result.Message}");
 
-        if (!config.PromptOnError)
+        if (!PromptOnError)
             return;
 
         progress.WriteLine("Press 'y' to continue or any other key to abort:");
@@ -105,29 +132,42 @@ internal class StudentDeviceAssigner(Config config)
             var device = await GetChromeDeviceBySerial(service, record.SerialNumber);
             if (device?.DeviceId is null)
             {
-                return new(false, $"Device not found for serial '{record.SerialNumber}'");
+                return new(false, device, $"Device not found for serial '{record.SerialNumber}'");
             }
+
+            // TODO: Templatable DeviceId and AssetId
+            var deviceId = $"{CartNumber}-{record.DeviceNumber}";
+            var assetId = string.IsNullOrEmpty(record.PurchaseId)
+                ? $"{deviceId} {record.StudentName}"
+                : $"{deviceId} {record.PurchaseId} {record.StudentName}";
+            var orgUnitPath = TemplateResolver.Render(OrgUnitPathTemplate, new()
+            {
+                CartNumber = CartNumber,
+                DeviceNumber = deviceId,
+                SerialNumber = record.SerialNumber,
+                PurchaseId = record.PurchaseId,
+            });
 
             var updatedDevice = new ChromeOsDevice
             {
-                AnnotatedAssetId = record.AssetInfo,
-                OrgUnitPath = record.OrgUnitPath ?? device.OrgUnitPath,
+                AnnotatedAssetId = assetId,
+                OrgUnitPath = orgUnitPath ?? device.OrgUnitPath,
                 Notes = string.IsNullOrEmpty(device.Notes)
-                    ? record.AssetInfo
-                    : $"{record.AssetInfo} ({device.Notes})",
+                    ? assetId
+                    : $"{assetId} ({device.Notes})",
             };
 
             if (IsDryRun)
             {
-                return new(true, $"[Dry Run] '{device.SerialNumber}', Asset: {record.AssetInfo}, OU: {updatedDevice.OrgUnitPath}");
+                return new(true, device, $"[Dry Run] '{device.SerialNumber}', Asset: {assetId}, OU: {updatedDevice.OrgUnitPath}");
             }
 
             await service.Chromeosdevices.Update(updatedDevice, CustomerId, device.DeviceId).ExecuteAsync();
-            return new(true, $"Updated device: '{record.SerialNumber}', Asset: {record.AssetInfo}, OU: {record.OrgUnitPath}");
+            return new(true, device, $"Updated device: '{device.SerialNumber}', Asset: {assetId}, OU: {updatedDevice.OrgUnitPath}");
         }
         catch (Exception ex)
         {
-            return new(false, $"Error updating device '{record.SerialNumber}': {ex.Message}");
+            return new(false, null, $"Error updating device '{record.SerialNumber}': {ex.Message}");
         }
     }
 
@@ -141,22 +181,26 @@ internal class StudentDeviceAssigner(Config config)
         return response.Chromeosdevices?.FirstOrDefault();
     }
 
-    private GoogleCredential CreateCredentials()
-    {
-        return GoogleCredential
+    private GoogleCredential CreateCredentials() =>
+        GoogleCredential
             .FromFile(ServiceAccountPath)
-            .CreateScoped(DirectoryService.Scope.AdminDirectoryDeviceChromeos)
-            .CreateWithUser(AdminUserToImpersonate); // Impersonate admin
-    }
+            .CreateScoped(AdminScopes)
+            .CreateWithUser(AdminUserToImpersonate);
 
-    private DirectoryService CreateService()
-    {
-        return new DirectoryService(new BaseClientService.Initializer
+    //BaseClientService
+    private DirectoryService CreateAdminService() =>
+        new(new BaseClientService.Initializer
         {
             HttpClientInitializer = CreateCredentials(),
             ApplicationName = AppName,
         });
-    }
+
+    private SheetsService CreateSheetsService() =>
+        new(new BaseClientService.Initializer
+        {
+            HttpClientInitializer = CreateCredentials(),
+            ApplicationName = AppName,
+        });
 
     private List<StudentDeviceRecord> ReadCsv(string path)
     {
@@ -189,12 +233,76 @@ internal class StudentDeviceAssigner(Config config)
         }
     }
 
+    private async Task UpdateGoogleSheetAsync(ChromeOsDevice device, StudentDeviceRecord record)
+    {
+        if (_sheetsService is null || string.IsNullOrWhiteSpace(GoogleSheetId))
+            return;
+
+        // TODO: Templatable Tab Name
+        var tabName = $"Cart {CartNumber}";
+        var sheet = await EnsureSheetTabExists(tabName);
+
+        var range = $"{tabName}!A2:K";
+        var response = await _sheetsService.Spreadsheets.Values.Get(GoogleSheetId, range).ExecuteAsync();
+        var existing = response.Values?.ToList() ?? [];
+
+        var rowIndex = existing.FindIndex(row =>
+            row.Count > 2 && string.Equals(row[2]?.ToString(), record.SerialNumber, StringComparison.OrdinalIgnoreCase));
+
+        var newRow = new List<object?>
+        {
+            $"{CartNumber}-{record.DeviceNumber}",
+            record.SerialNumber,
+            CartNumber,
+            device.MacAddress,
+            "",//"Out of Service",
+            device.Model,
+            record.StudentName,
+            device.AnnotatedAssetId, //Existing Device Id
+            record.PurchaseId,
+            record.Damage,
+        };
+
+        if (rowIndex >= 0)
+        {
+            var updateRange = $"{tabName}!A{rowIndex + 2}";
+            var update = _sheetsService.Spreadsheets.Values.Update(new ValueRange { Values = [newRow] }, GoogleSheetId, updateRange);
+            update.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+            var result = await update.ExecuteAsync();
+        }
+        else
+        {
+            var appendRange = $"{tabName}!A:K";
+            var append = _sheetsService.Spreadsheets.Values.Append(new ValueRange { Values = [newRow] }, GoogleSheetId, appendRange);
+            append.ValueInputOption = SpreadsheetsResource.ValuesResource.AppendRequest.ValueInputOptionEnum.USERENTERED;
+            var result = await append.ExecuteAsync();
+        }
+    }
+
+    private async Task<SheetProperties> EnsureSheetTabExists(string title)
+    {
+        var spreadsheet = await _sheetsService!.Spreadsheets.Get(GoogleSheetId).ExecuteAsync();
+        var sheet = spreadsheet.Sheets?.FirstOrDefault(s => s.Properties.Title == title);
+
+        if (sheet != null)
+            return sheet.Properties;
+
+        var addSheetRequest = new AddSheetRequest
+        {
+            Properties = new SheetProperties { Title = title },
+        };
+
+        var batchUpdate = new BatchUpdateSpreadsheetRequest
+        {
+            Requests = [new Request { AddSheet = addSheetRequest }],
+        };
+
+        await _sheetsService.Spreadsheets.BatchUpdate(batchUpdate, GoogleSheetId).ExecuteAsync();
+        return addSheetRequest.Properties;
+    }
+
     #endregion
 }
-
-internal record StudentDeviceRecord(string SerialNumber, string? AssetInfo, string? OrgUnitPath);
-
-internal record StudentDeviceUpdateResult(bool Success, string Message);
 
 internal sealed class StudentDeviceAssignerError(string error) : EventArgs
 {
