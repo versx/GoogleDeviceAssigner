@@ -55,7 +55,7 @@ internal static partial class TemplateResolver
 
 internal class TemplateData
 {
-    public int CartNumber { get; set; }
+    public string CartNumber { get; set; } = null!;
     public string DeviceId { get; set; } = null!;
     public string DeviceNumber { get; set; } = null!;
     public string SerialNumber { get; set; } = null!;

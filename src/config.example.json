@@ -1,6 +1,5 @@
 {
 	"csv": "devices.csv",
-	"cartNumber": 1,
 	"deviceIdTemplate": "{CartNumber}-{DeviceNumber}",
 	"assetIdTemplate": "{DeviceId} {PurchaseId} {StudentName}",
 	"tabNameTemplate": "Cart {CartNumber}",
