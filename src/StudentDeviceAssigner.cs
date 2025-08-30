@@ -86,7 +86,8 @@ internal class StudentDeviceAssigner(Config config)
 
             progress.Tick(record.SerialNumber);
 
-            token.ThrowIfCancellationRequested();
+            //token.ThrowIfCancellationRequested();
+            Thread.Sleep(1000);
         }
 
         if (failed.Count > 0)
