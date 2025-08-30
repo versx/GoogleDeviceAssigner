@@ -34,8 +34,8 @@ internal class Config
 
     #region Properties
 
-    [JsonPropertyName("cartNumber")]
-    public int CartNumber { get; set; } = 1;
+    //[JsonPropertyName("cartNumber")]
+    //public int CartNumber { get; set; } = 1;
 
     [JsonPropertyName("deviceIdTemplate")]
     public string DeviceIdTemplate { get; set; } = DefaultDeviceIdTemplate;
@@ -100,7 +100,7 @@ internal class Config
 
         var config = new Config
         {
-            CartNumber = int.TryParse(GetArg("cartNumber"), out var cartNum) ? cartNum : 1,
+            //CartNumber = int.TryParse(GetArg("cartNumber"), out var cartNum) ? cartNum : 1,
             DeviceIdTemplate = GetArg("deviceIdTemplate") ?? DefaultDeviceIdTemplate,
             AssetIdTemplate = GetArg("assetIdTemplate") ?? DefaultAssetIdTemplate,
             TabNameTemplate = GetArg("tabNameTemplate") ?? DefaultTabNameTemplate,

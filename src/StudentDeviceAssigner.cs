@@ -36,7 +36,7 @@ internal class StudentDeviceAssigner(Config config)
 
     #region Properties
 
-    public int CartNumber => config.CartNumber;
+    //public int CartNumber => config.CartNumber;
     public string DeviceIdTemplate => config.DeviceIdTemplate;
     public string AssetIdTemplate => config.AssetIdTemplate;
     public string TabNameTemplate => config.TabNameTemplate;
@@ -151,14 +151,14 @@ internal class StudentDeviceAssigner(Config config)
 
             var deviceId = TemplateResolver.FormatTemplate(DeviceIdTemplate, new Dictionary<string, string?>
             {
-                ["CartNumber"] = CartNumber.ToString(),
+                ["CartNumber"] = record.CartNumber?.ToString(),
                 ["DeviceNumber"] = record.DeviceNumber!,
                 ["SerialNumber"] = record.SerialNumber,
                 ["PurchaseId"] = record.PurchaseId,
             });
             var assetId = TemplateResolver.FormatTemplate(AssetIdTemplate, new Dictionary<string, string?>
             {
-                ["CartNumber"] = CartNumber.ToString(),
+                ["CartNumber"] = record.CartNumber?.ToString(),
                 ["DeviceId"] = deviceId!,
                 ["StudentName"] = record.StudentName!,
                 ["DeviceNumber"] = record.DeviceNumber!,
@@ -167,7 +167,7 @@ internal class StudentDeviceAssigner(Config config)
             });
             var orgUnitPath = TemplateResolver.Resolve(OrgUnitPathTemplate, new TemplateData
             {
-                CartNumber = CartNumber,
+                CartNumber = record.CartNumber?.ToString()!,
                 DeviceNumber = deviceId!,
                 SerialNumber = record.SerialNumber,
                 PurchaseId = record.PurchaseId,
@@ -283,7 +283,7 @@ internal class StudentDeviceAssigner(Config config)
         //var tabName = $"Cart {CartNumber}";
         var tabName = TemplateResolver.Resolve(TabNameTemplate, new TemplateData
         {
-            CartNumber = CartNumber,
+            CartNumber = record.CartNumber?.ToString()!,
             DeviceNumber = record.DeviceNumber!,
             SerialNumber = record.SerialNumber,
             PurchaseId = record.PurchaseId,
@@ -299,9 +299,9 @@ internal class StudentDeviceAssigner(Config config)
 
         var newRow = new List<object?>
         {
-            $"{CartNumber}-{record.DeviceNumber}",
+            $"{record.CartNumber}-{record.DeviceNumber}",
             record.SerialNumber,
-            CartNumber,
+            record.CartNumber,
             device.MacAddress,
             "", // Out of Service
             device.Model,

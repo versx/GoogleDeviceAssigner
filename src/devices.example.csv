@@ -1,4 +1,4 @@
-DeviceNumber,SerialNumber,StudentName,PurchaseId,Damage
-1,5CD123GDJ,John Smith,100-923,Scratches top lid
-2,5CD123GDK,Jane Smith,100-923,
-3,5CD123GDL,Petro Gonzalez,,
+CartNumber,DeviceNumber,SerialNumber,StudentName,PurchaseId,Damage
+1,1,5CD123GDJ,John Smith,100-923,Scratches top lid
+1,2,5CD123GDK,Jane Smith,100-923,
+ARTS3,3,5CD123GDL,Petro Gonzalez,,

@@ -21,7 +21,7 @@ static void PrintUsage()
     );
     Console.WriteLine(
         "  dotnet run -- " +
-        "--cartNumber=1" +
+        //"--cartNumber=1" +
         "--deviceIdTemplate={CartNumber}-{DeviceNumber}" +
         "--assetIdTemplate={DeviceId} {PurchaseId} {StudentName}" +
         "--tabNameTemplate=/Chromebooks/Cart {CartNumber} {YearRange}" +
