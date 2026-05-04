@@ -25,7 +25,7 @@ public class OrgUnitCreator(DirectoryService service, string customerId = Config
                     Name = part,
                     //OrgUnitPath = currentPath,
                     ParentOrgUnitPath = parentPath,
-                    Description = "Test",
+                    Description = "Chromebook Cart", // TODO: OU Description
                     Kind = "admin#directory#orgUnit",
                 };
 
